@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:jms="http://www.mulesoft.org/schema/mule/jms"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/jms http://www.mulesoft.org/schema/mule/jms/current/mule-jms.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd">
+	<jms:config name="JMS_Config" doc:name="JMS Config" doc:id="3976a30b-03f8-4042-b164-d893b3769843" >
+		<jms:active-mq-connection username="admin" password="admin">
+			<jms:factory-configuration brokerUrl="tcp://localhost:61616" />
+		</jms:active-mq-connection>
+	</jms:config>
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="4c24dcbf-3d57-471a-ba0a-9df319a56c7c" >
+		<http:listener-connection host="0.0.0.0" port="8081" />
+	</http:listener-config>
+	<flow name="consumeFlow" doc:id="4fd58320-263b-420f-a752-973218fa21c2" >
+		<http:listener doc:name="Listener" doc:id="9c8e475c-e302-478f-940b-4e4129f29c83" config-ref="HTTP_Listener_config" path="/consume"/>
+		<jms:consume doc:name="Consume" doc:id="60f72576-1eb1-483d-8de8-22b8d858eaff" destination="app_queue" config-ref="JMS_Config" contentType="application/json" encoding="UTF-8">
+			<jms:consumer-type >
+				<jms:queue-consumer />
+			</jms:consumer-type>
+		</jms:consume>
+		<ee:transform doc:name="Transform Message" doc:id="9c577a66-0ad4-4641-8699-24ca1647d9b5">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+using(finalData=payload filter ((item, index) -> item.Price == "1200" and (item.Country == "United Kingdom" or item.Country == "Canada" or item.Country == "Spain") and item.Payment_Type == "Mastercard"))
+
+finalData map ((item, index) -> {
+    Transaction_date: item.Transaction_date,
+    Product: item.Product,
+    Price : item.Price
+})]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="Logger" doc:id="60ce32f7-339e-429f-8d9b-9035dd59e2fe" message="#[payload]"/>
+	</flow>
+</mule>
